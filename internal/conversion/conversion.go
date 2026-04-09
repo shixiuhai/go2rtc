@@ -54,6 +54,7 @@ func Init() {
 	app.LoadConfig(&cfg)
 
 	log = app.GetLogger("conversion")
+	log.Info().Msg("[conversion] init")
 
 	manager = &StreamManager{
 		tasks:      make(map[string]*TaskInfo),

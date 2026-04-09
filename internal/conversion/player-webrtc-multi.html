@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC 多窗口大屏</title>
+    <title>WebRTC 多窗口大屏监控</title>
     <style>
         * {
             box-sizing: border-box;
@@ -67,6 +67,7 @@
             background: rgba(0, 0, 0, 0.3);
             color: #fff;
             font-size: 13px;
+            width: 180px;
         }
 
         .header-controls input:focus {
@@ -94,6 +95,11 @@
             box-shadow: 0 5px 15px rgba(0, 217, 255, 0.4);
         }
 
+        .btn-success {
+            background: linear-gradient(135deg, #00b899 0%, #008766 100%);
+            color: #fff;
+        }
+
         .btn-danger {
             background: linear-gradient(135deg, #ff4757 0%, #cc3344 100%);
             color: #fff;
@@ -104,17 +110,15 @@
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 8px;
             padding: 8px;
-            height: calc(100vh - 70px);
+            height: calc(100vh - 50px);
             overflow-y: auto;
         }
 
-        /* 紧凑布局 */
         .grid-container.compact {
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 4px;
         }
 
-        /* 超紧凑布局 */
         .grid-container.ultra {
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 2px;
@@ -128,60 +132,6 @@
             display: flex;
             flex-direction: column;
             min-height: 150px;
-        }
-
-        /* 紧凑模式窗口样式 */
-        .grid-container.compact .window {
-            min-height: 120px;
-        }
-
-        .grid-container.compact .window-header {
-            padding: 4px 8px;
-        }
-
-        .grid-container.compact .window-title {
-            font-size: 10px;
-            max-width: 80px;
-        }
-
-        .grid-container.compact .btn-icon {
-            width: 22px;
-            height: 22px;
-            font-size: 12px;
-        }
-
-        .grid-container.compact .window-status {
-            padding: 4px 8px;
-            font-size: 10px;
-        }
-
-        /* 超紧凑模式 */
-        .grid-container.ultra .window {
-            min-height: 100px;
-        }
-
-        .grid-container.ultra .window-header {
-            padding: 2px 6px;
-        }
-
-        .grid-container.ultra .window-title {
-            font-size: 9px;
-            max-width: 60px;
-        }
-
-        .grid-container.ultra .btn-icon {
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-        }
-
-        .grid-container.ultra .window-status {
-            padding: 2px 6px;
-            font-size: 9px;
-        }
-
-        .grid-container.ultra .window-body video {
-            height: 70px;
         }
 
         .window.active {
@@ -228,11 +178,6 @@
 
         .btn-play {
             background: #2ed573;
-            color: #fff;
-        }
-
-        .btn-stop {
-            background: #ff4757;
             color: #fff;
         }
 
@@ -336,7 +281,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 200px;
+            min-height: 150px;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -347,14 +292,14 @@
         }
 
         .add-icon {
-            font-size: 48px;
+            font-size: 40px;
             color: #00d9ff;
             margin-bottom: 10px;
         }
 
         .add-text {
             color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .modal {
@@ -411,7 +356,39 @@
             justify-content: flex-end;
         }
 
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
 
+        .toast.success {
+            background: #2ed573;
+        }
+
+        .toast.error {
+            background: #ff4757;
+        }
+
+        .toast.warning {
+            background: #ffa502;
+        }
+
+        .toast.info {
+            background: #00d9ff;
+            color: #000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -419,13 +396,13 @@
         <h1>📺 WebRTC 多窗口大屏 <span id="windowCount" style="font-size:12px;color:#888;">(0 路)</span></h1>
         <div class="header-controls">
             <div class="layout-selector">
-                <button class="layout-btn active" onclick="setLayout('normal')" title="标准布局">标准</button>
-                <button class="layout-btn" onclick="setLayout('compact')" title="紧凑布局">紧凑</button>
-                <button class="layout-btn" onclick="setLayout('ultra')" title="超紧凑布局">密集</button>
+                <button class="layout-btn active" onclick="setLayout('normal')">标准</button>
+                <button class="layout-btn" onclick="setLayout('compact')">紧凑</button>
+                <button class="layout-btn" onclick="setLayout('ultra')">密集</button>
             </div>
-            <input type="text" id="serverUrl" value="http://localhost:1984" placeholder="服务器地址" style="width:160px;">
+            <input type="text" id="serverUrl" value="http://localhost:1984" placeholder="服务器地址">
             <button class="btn btn-primary" onclick="showAddModal()">➕ 添加</button>
-            <button class="btn btn-primary" onclick="showBatchModal()" style="background:linear-gradient(135deg, #00b899 0%, #008766 100%);">📋 批量</button>
+            <button class="btn btn-success" onclick="showBatchModal()">📋 批量</button>
             <button class="btn btn-danger" onclick="stopAll()">⏹ 全部</button>
         </div>
     </div>
@@ -436,7 +413,7 @@
     <div class="modal" id="addModal">
         <div class="modal-content">
             <div class="modal-title">📹 添加新窗口</div>
-            <input type="text" class="modal-input" id="rtspUrlInput" placeholder="输入 RTSP 地址">
+            <input type="text" class="modal-input" id="rtspUrlInput" placeholder="输入 RTSP 地址" value="rtsp://192.168.6.2:8080/h264.sdp">
             <div class="modal-actions">
                 <button class="btn btn-danger" onclick="hideAddModal()">取消</button>
                 <button class="btn btn-primary" onclick="confirmAdd()">确定添加</button>
@@ -447,8 +424,8 @@
     <!-- 批量添加模态框 -->
     <div class="modal" id="batchModal">
         <div class="modal-content" style="max-width:600px;">
-            <div class="modal-title">📹 批量添加窗口</div>
-            <textarea class="modal-input" id="batchRtspInput" placeholder="每行一个 RTSP 地址" rows="10" style="width:100%;min-height:200px;font-family:monospace;"></textarea>
+            <div class="modal-title">📋 批量添加窗口</div>
+            <textarea class="modal-input" id="batchRtspInput" placeholder="每行一个 RTSP 地址" rows="10" style="width:100%;min-height:200px;font-family:monospace;resize:vertical;"></textarea>
             <div style="margin-bottom:10px;font-size:12px;color:#888;">
                 示例：<br>
                 rtsp://192.168.1.100:554/stream1<br>
@@ -465,17 +442,26 @@
     <script>
         const windows = new Map();
         let windowIdCounter = 0;
+        let isConnected = false;
 
         function getServerUrl() {
             const custom = document.getElementById('serverUrl').value.trim();
             if (custom) {
                 return custom.replace(/\/$/, '');
             }
-            // 检测文件协议，提示用户
-            if (window.location.protocol === 'file:') {
-                log('⚠️ 文件协议模式，请确保下方服务器地址正确', 'warning');
-            }
             return 'http://localhost:1984';
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function log(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
         }
 
         function setLayout(layout) {
@@ -499,13 +485,13 @@
 
         function hideAddModal() {
             document.getElementById('addModal').classList.remove('show');
-            document.getElementById('rtspUrlInput').value = '';
+            document.getElementById('rtspUrlInput').value = 'rtsp://192.168.6.2:8080/h264.sdp';
         }
 
         function confirmAdd() {
             const rtspUrl = document.getElementById('rtspUrlInput').value.trim();
             if (!rtspUrl) {
-                alert('请输入 RTSP 地址');
+                showToast('请输入 RTSP 地址', 'error');
                 return;
             }
             addWindow(rtspUrl);
@@ -525,19 +511,19 @@
         async function confirmBatchAdd() {
             const text = document.getElementById('batchRtspInput').value.trim();
             if (!text) {
-                alert('请输入 RTSP 地址');
+                showToast('请输入 RTSP 地址', 'error');
                 return;
             }
 
             const urls = text.split('\n').map(u => u.trim()).filter(u => u);
             if (urls.length === 0) {
-                alert('没有有效的 RTSP 地址');
+                showToast('没有有效的 RTSP 地址', 'error');
                 return;
             }
 
             hideBatchModal();
+            showToast(`开始添加 ${urls.length} 个窗口`, 'info');
 
-            // 逐个添加，每个间隔 100ms
             for (let i = 0; i < urls.length; i++) {
                 addWindow(urls[i]);
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -565,7 +551,7 @@
                             <div class="status-dot" id="statusDot-${windowId}"></div>
                             <span id="statusText-${windowId}">未播放</span>
                         </div>
-                        <span style="color: rgba(255,255,255,0.5); font-size: 10px;">${rtspUrl}</span>
+                        <span style="color: rgba(255,255,255,0.5); font-size: 10px;" title="${rtspUrl}">${rtspUrl.substring(0, 30)}...</span>
                     </div>
                 </div>
             `;
@@ -582,6 +568,10 @@
                     body: JSON.stringify({ path: rtspUrl })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
                 const data = await response.json();
 
                 if (data.code === 200) {
@@ -591,7 +581,7 @@
 
                     container.insertAdjacentHTML('beforeend', createWindowElement(windowId, rtspUrl));
                     
-                    startPlayback(windowId, data.taskId);
+                    startPlayback(windowId, data.taskId, rtspUrl);
                     startKeepAlive(windowId, data.taskId);
                     
                     windows.set(windowId, {
@@ -604,15 +594,17 @@
 
                     updateLayout();
                     updateWindowCount();
+                    showToast(`已添加：${windowId}`, 'success');
                 } else {
-                    alert('添加失败：' + data.result);
+                    showToast(`添加失败：${data.result}`, 'error');
                 }
             } catch (error) {
-                alert('请求失败：' + error.message);
+                showToast(`请求失败：${error.message}`, 'error');
+                windowIdCounter--;
             }
         }
 
-        function startPlayback(windowId, taskId) {
+        function startPlayback(windowId, taskId, rtspUrl) {
             const videoElement = document.getElementById(`video-${windowId}`);
             const statusDot = document.getElementById(`statusDot-${windowId}`);
             const statusText = document.getElementById(`statusText-${windowId}`);
@@ -620,8 +612,11 @@
             const windowEl = document.getElementById(`window-${windowId}`);
 
             const streamName = 'conv_' + taskId;
-            const serverUrl = getServerUrl().replace('http://', 'ws://').replace('https://', 'wss://');
+            const baseServerUrl = getServerUrl();
+            const serverUrl = baseServerUrl.replace('http://', 'ws://').replace('https://', 'wss://');
             const wsUrl = `${serverUrl}/api/ws?src=${streamName}`;
+            
+            log(`WebSocket 地址：${wsUrl}`, 'info');
             
             const pc = new RTCPeerConnection({
                 iceServers: [
@@ -631,27 +626,24 @@
                 sdpSemantics: 'unified-plan'
             });
             
-            // 优化：只接收视频
             pc.addTransceiver('video', { direction: 'recvonly' });
 
             let ws = null;
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 3;
 
             loading.classList.remove('hidden');
             statusDot.className = 'status-dot connecting';
             statusText.textContent = '连接中...';
 
             pc.ontrack = (event) => {
+                log(`收到视频流 [${windowId}]`, 'success');
                 videoElement.srcObject = event.streams[0];
                 videoElement.play().catch(() => {});
                 loading.classList.add('hidden');
                 statusDot.className = 'status-dot active';
                 statusText.textContent = '播放中';
                 windowEl.classList.add('active');
-            };
-            
-            // 优化：降低不活跃窗口的帧率
-            pc.onnegotiationneeded = async () => {
-                // 自动重新协商
             };
 
             pc.onicecandidate = (event) => {
@@ -664,11 +656,18 @@
             };
 
             pc.onconnectionstatechange = () => {
+                log(`连接状态 [${windowId}]: ${pc.connectionState}`, 'info');
                 if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
                     loading.classList.add('hidden');
                     statusDot.className = 'status-dot error';
                     statusText.textContent = '连接失败';
                     windowEl.classList.remove('active');
+                    
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        log(`尝试重连 [${windowId}] ${reconnectAttempts}/${maxReconnectAttempts}`, 'warning');
+                        setTimeout(() => startPlayback(windowId, taskId, rtspUrl), 2000 * reconnectAttempts);
+                    }
                 } else if (pc.connectionState === 'connected') {
                     loading.classList.add('hidden');
                     statusDot.className = 'status-dot active';
@@ -677,41 +676,67 @@
             };
 
             ws = new WebSocket(wsUrl);
+            log(`正在连接 WebSocket: ${ws.url}`, 'info');
 
             ws.onopen = async () => {
-                const offer = await pc.createOffer({
-                    offerToReceiveVideo: true,
-                    offerToReceiveAudio: true
-                });
-                await pc.setLocalDescription(offer);
-                
-                ws.send(JSON.stringify({
-                    type: 'webrtc',
-                    value: {
-                        type: 'offer',
-                        sdp: pc.localDescription.sdp
-                    }
-                }));
+                log(`WebSocket 已连接 [${windowId}]`, 'success');
+                try {
+                    const offer = await pc.createOffer({
+                        offerToReceiveVideo: true,
+                        offerToReceiveAudio: false
+                    });
+                    await pc.setLocalDescription(offer);
+                    
+                    ws.send(JSON.stringify({
+                        type: 'webrtc',
+                        value: {
+                            type: 'offer',
+                            sdp: pc.localDescription.sdp
+                        }
+                    }));
+                    log(`已发送 Offer [${windowId}]`, 'info');
+                } catch (err) {
+                    log(`创建 Offer 失败 [${windowId}]: ${err.message}`, 'error');
+                    loading.classList.add('hidden');
+                    statusDot.className = 'status-dot error';
+                    statusText.textContent = '创建 Offer 失败';
+                }
             };
 
             ws.onmessage = async (event) => {
                 try {
                     const msg = JSON.parse(event.data);
+                    log(`收到消息 [${windowId}]: ${msg.type}`, 'info');
 
-                    if (msg.type === 'webrtc' && msg.value.type === 'answer') {
-                        await pc.setRemoteDescription(new RTCSessionDescription(msg.value));
+                    if (msg.type === 'webrtc') {
+                        if (msg.value.type === 'answer') {
+                            await pc.setRemoteDescription(new RTCSessionDescription(msg.value));
+                            log(`收到 Answer [${windowId}]`, 'success');
+                        }
                     } else if (msg.type === 'webrtc/candidate') {
-                        await pc.addIceCandidate(new RTCIceCandidate({ candidate: msg.value }));
+                        await pc.addIceCandidate(new RTCIceCandidate({
+                            candidate: msg.value
+                        }));
+                    } else if (msg.type === 'error') {
+                        log(`错误 [${windowId}]: ${msg.value}`, 'error');
+                        loading.classList.add('hidden');
+                        statusDot.className = 'status-dot error';
+                        statusText.textContent = '错误：' + msg.value;
                     }
                 } catch (err) {
-                    console.error('处理消息失败:', err);
+                    log(`处理消息失败 [${windowId}]: ${err.message}`, 'error');
                 }
             };
 
-            ws.onerror = () => {
+            ws.onerror = (err) => {
+                log(`WebSocket 错误 [${windowId}]`, 'error');
                 loading.classList.add('hidden');
                 statusDot.className = 'status-dot error';
                 statusText.textContent = 'WebSocket 错误';
+            };
+
+            ws.onclose = () => {
+                log(`WebSocket 已关闭 [${windowId}]`, 'warning');
             };
 
             const windowData = windows.get(windowId);
@@ -724,10 +749,15 @@
         function stopPlayback(windowId) {
             const windowData = windows.get(windowId);
             if (windowData) {
-                if (windowData.ws) windowData.ws.close();
-                if (windowData.pc) windowData.pc.close();
+                if (windowData.ws) {
+                    windowData.ws.close();
+                    windowData.ws = null;
+                }
+                if (windowData.pc) {
+                    windowData.pc.close();
+                    windowData.pc = null;
+                }
             }
-            windows.delete(windowId);
         }
 
         function togglePlay(windowId) {
@@ -739,11 +769,14 @@
                 } else {
                     video.pause();
                 }
+            } else if (!windowData) {
+                showToast('窗口未连接', 'error');
             }
         }
 
         function startKeepAlive(windowId, taskId) {
-            const interval = parseInt(document.getElementById('keepAliveInterval')?.value) || 25000;
+            const interval = 25000;
+            
             const timer = setInterval(async () => {
                 if (windows.has(windowId)) {
                     try {
@@ -753,7 +786,7 @@
                             body: JSON.stringify({ taskId })
                         });
                     } catch (err) {
-                        console.error('保活失败:', err);
+                        log(`保活失败 [${windowId}]: ${err.message}`, 'warning');
                     }
                 } else {
                     clearInterval(timer);
@@ -767,7 +800,7 @@
         }
 
         function removeWindow(windowId) {
-            if (!confirm('确定要删除这个窗口吗？')) return;
+            if (!confirm(`确定要删除窗口 ${windowId} 吗？`)) return;
 
             const windowData = windows.get(windowId);
             if (windowData && windowData.taskId) {
@@ -779,12 +812,14 @@
             }
 
             stopPlayback(windowId);
+            windows.delete(windowId);
 
             const windowEl = document.getElementById(`window-${windowId}`);
             if (windowEl) windowEl.remove();
 
             updateLayout();
             updateWindowCount();
+            showToast(`已删除：${windowId}`, 'info');
         }
 
         function stopAll() {
@@ -801,14 +836,18 @@
                 stopPlayback(windowId);
             });
 
+            windows.clear();
+            windowIdCounter = 0;
+
             document.getElementById('gridContainer').innerHTML = `
                 <div class="add-window-card" onclick="showAddModal()">
                     <div class="add-icon">➕</div>
                     <div class="add-text">点击添加窗口</div>
                 </div>
             `;
-            windowIdCounter = 0;
+            
             updateWindowCount();
+            showToast('已停止所有窗口', 'info');
         }
 
         function updateLayout() {
@@ -823,6 +862,18 @@
             }
         }
 
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${getServerUrl()}/api/health`);
+                const data = await response.json();
+                isConnected = true;
+                log(`服务状态：${data.status || 'OK'}，当前流数：${data.streams || 0}`, 'success');
+            } catch (error) {
+                isConnected = false;
+                log(`无法连接服务：${error.message}`, 'error');
+            }
+        }
+
         window.addEventListener('beforeunload', () => {
             windows.forEach((data) => {
                 if (data.ws) data.ws.close();
@@ -832,21 +883,18 @@
             windows.clear();
         });
 
-        // 日志函数
-        function log(message, type = 'info') {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-        }
-
         // 初始化
         log('WebRTC 多窗口大屏已加载', 'success');
-        log(`默认服务器地址：http://localhost:1984`, 'info');
+        log(`默认服务器地址：${getServerUrl()}`, 'info');
         
-        // 检测文件协议
         if (window.location.protocol === 'file:') {
-            log('当前为本地文件模式，如无法连接请检查 go2rtc 是否启动', 'warning');
+            log('⚠️ 检测到文件协议，请通过 HTTP 访问页面', 'warning');
+            showToast('请通过 HTTP 访问此页面 (http://localhost:1984/...)', 'warning');
         }
         
         updateLayout();
+        checkServerStatus();
+        setInterval(checkServerStatus, 30000);
     </script>
 </body>
 </html>
