@@ -1,0 +1,14 @@
+20:01:35.404 INF go2rtc platform=linux/amd64 revision=dc1685e.dirty version=1.9.14+dev.dc1685e.dirty
+20:01:35.404 INF config path=/root/go/go2rtc/go2rtc.yaml
+20:01:35.405 INF [api] listen addr=:1984
+20:01:35.405 INF [rtsp] listen addr=:8554
+20:01:35.408 INF [webrtc] listen tcp addr=[::]:8555
+20:01:35.410 INF [webrtc] listen udp addr=192.168.6.248:8555
+20:01:35.410 INF [webrtc] listen udp addr=172.22.0.1:8555
+20:01:35.410 INF [webrtc] listen udp addr=172.17.0.1:8555
+20:01:35.410 INF [webrtc] listen udp addr=172.23.0.1:8555
+20:01:35.410 INF [webrtc] listen udp addr=10.8.0.132:8555
+20:01:38.406 INF conversion task added rtsp=rtsp://192.168.6.2:8080/h264.sdp stream=conv_991ac60a492e0793 taskId=991ac60a492e0793
+20:03:16.189 INF conversion task removed taskId=991ac60a492e0793
+20:04:30.930 INF conversion task added rtsp=rtsp://192.168.6.2:8080/h264.sdp stream=conv_991ac60a492e0793 taskId=991ac60a492e0793
+20:07:35.409 INF task expired, removing taskId=991ac60a492e0793
