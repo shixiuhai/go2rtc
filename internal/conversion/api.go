@@ -57,15 +57,20 @@ func apiAddTask(w http.ResponseWriter, r *http.Request) {
 
 	taskID := GenerateTaskID(rtspPath)
 	flvURL := "/flv/" + taskID + ".flv"
+	streamName := "conv_" + taskID
+	webrtcURL := "/api/ws?src=" + streamName
+	playerURL := "/api/stream.html?src=" + streamName
 
 	existing := manager.GetTaskInfo(taskID)
 	if existing != nil {
 		writeJSON(w, 200, map[string]any{
-			"code":   200,
-			"result": "rtsp 流转换成功",
-			"path":   rtspPath,
-			"taskId": taskID,
-			"flvUrl": existing.FLVURL,
+			"code":      200,
+			"result":    "rtsp 流转换成功",
+			"path":      rtspPath,
+			"taskId":    taskID,
+			"flvUrl":    existing.FLVURL,
+			"webrtcUrl": webrtcURL,
+			"playerUrl": playerURL,
 		})
 		return
 	}
@@ -80,11 +85,13 @@ func apiAddTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, 200, map[string]any{
-		"code":   200,
-		"result": "rtsp 流转换成功",
-		"path":   rtspPath,
-		"taskId": taskID,
-		"flvUrl": flvURL,
+		"code":      200,
+		"result":    "rtsp 流转换成功",
+		"path":      rtspPath,
+		"taskId":    taskID,
+		"flvUrl":    flvURL,
+		"webrtcUrl": webrtcURL,
+		"playerUrl": playerURL,
 	})
 }
 

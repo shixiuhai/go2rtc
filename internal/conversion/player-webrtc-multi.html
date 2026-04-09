@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC 多窗口大屏</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00d9ff;
+        }
+
+        .header h1 {
+            color: #00d9ff;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .layout-selector {
+            display: flex;
+            gap: 5px;
+        }
+
+        .layout-btn {
+            padding: 6px 12px;
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .layout-btn.active {
+            background: #00d9ff;
+            color: #000;
+        }
+
+        .header-controls input {
+            padding: 8px 12px;
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 13px;
+        }
+
+        .header-controls input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 217, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #cc3344 100%);
+            color: #fff;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 8px;
+            padding: 8px;
+            height: calc(100vh - 70px);
+            overflow-y: auto;
+        }
+
+        /* 紧凑布局 */
+        .grid-container.compact {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 4px;
+        }
+
+        /* 超紧凑布局 */
+        .grid-container.ultra {
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 2px;
+        }
+
+        .window {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            min-height: 150px;
+        }
+
+        /* 紧凑模式窗口样式 */
+        .grid-container.compact .window {
+            min-height: 120px;
+        }
+
+        .grid-container.compact .window-header {
+            padding: 4px 8px;
+        }
+
+        .grid-container.compact .window-title {
+            font-size: 10px;
+            max-width: 80px;
+        }
+
+        .grid-container.compact .btn-icon {
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+        }
+
+        .grid-container.compact .window-status {
+            padding: 4px 8px;
+            font-size: 10px;
+        }
+
+        /* 超紧凑模式 */
+        .grid-container.ultra .window {
+            min-height: 100px;
+        }
+
+        .grid-container.ultra .window-header {
+            padding: 2px 6px;
+        }
+
+        .grid-container.ultra .window-title {
+            font-size: 9px;
+            max-width: 60px;
+        }
+
+        .grid-container.ultra .btn-icon {
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+        }
+
+        .grid-container.ultra .window-status {
+            padding: 2px 6px;
+            font-size: 9px;
+        }
+
+        .grid-container.ultra .window-body video {
+            height: 70px;
+        }
+
+        .window.active {
+            border-color: #2ed573;
+            box-shadow: 0 0 15px rgba(46, 213, 115, 0.3);
+        }
+
+        .window-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .window-title {
+            font-size: 12px;
+            color: #00d9ff;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .window-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-icon {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .btn-play {
+            background: #2ed573;
+            color: #fff;
+        }
+
+        .btn-stop {
+            background: #ff4757;
+            color: #fff;
+        }
+
+        .btn-delete {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ff4757;
+        }
+
+        .window-body {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .window-body video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .window-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.4);
+            font-size: 11px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .status-dot.active {
+            background: #2ed573;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connecting {
+            background: #ffa502;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.error {
+            background: #ff4757;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(0, 217, 255, 0.3);
+            border-top-color: #00d9ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .add-window-card {
+            background: rgba(0, 217, 255, 0.1);
+            border: 2px dashed rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-window-card:hover {
+            background: rgba(0, 217, 255, 0.15);
+            border-color: #00d9ff;
+        }
+
+        .add-icon {
+            font-size: 48px;
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+
+        .add-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 450px;
+            border: 1px solid rgba(0, 217, 255, 0.3);
+        }
+
+        .modal-title {
+            color: #00d9ff;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📺 WebRTC 多窗口大屏 <span id="windowCount" style="font-size:12px;color:#888;">(0 路)</span></h1>
+        <div class="header-controls">
+            <div class="layout-selector">
+                <button class="layout-btn active" onclick="setLayout('normal')" title="标准布局">标准</button>
+                <button class="layout-btn" onclick="setLayout('compact')" title="紧凑布局">紧凑</button>
+                <button class="layout-btn" onclick="setLayout('ultra')" title="超紧凑布局">密集</button>
+            </div>
+            <input type="text" id="serverUrl" value="http://localhost:1984" placeholder="服务器地址" style="width:160px;">
+            <button class="btn btn-primary" onclick="showAddModal()">➕ 添加</button>
+            <button class="btn btn-primary" onclick="showBatchModal()" style="background:linear-gradient(135deg, #00b899 0%, #008766 100%);">📋 批量</button>
+            <button class="btn btn-danger" onclick="stopAll()">⏹ 全部</button>
+        </div>
+    </div>
+
+    <div class="grid-container" id="gridContainer"></div>
+
+    <!-- 添加窗口模态框 -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <div class="modal-title">📹 添加新窗口</div>
+            <input type="text" class="modal-input" id="rtspUrlInput" placeholder="输入 RTSP 地址">
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="hideAddModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmAdd()">确定添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量添加模态框 -->
+    <div class="modal" id="batchModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-title">📹 批量添加窗口</div>
+            <textarea class="modal-input" id="batchRtspInput" placeholder="每行一个 RTSP 地址" rows="10" style="width:100%;min-height:200px;font-family:monospace;"></textarea>
+            <div style="margin-bottom:10px;font-size:12px;color:#888;">
+                示例：<br>
+                rtsp://192.168.1.100:554/stream1<br>
+                rtsp://192.168.1.100:554/stream2<br>
+                rtsp://192.168.1.100:554/stream3
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="hideBatchModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmBatchAdd()">确定批量添加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const windows = new Map();
+        let windowIdCounter = 0;
+
+        function getServerUrl() {
+            const custom = document.getElementById('serverUrl').value.trim();
+            if (custom) {
+                return custom.replace(/\/$/, '');
+            }
+            // 检测文件协议，提示用户
+            if (window.location.protocol === 'file:') {
+                log('⚠️ 文件协议模式，请确保下方服务器地址正确', 'warning');
+            }
+            return 'http://localhost:1984';
+        }
+
+        function setLayout(layout) {
+            const container = document.getElementById('gridContainer');
+            container.className = 'grid-container ' + layout;
+            
+            document.querySelectorAll('.layout-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function updateWindowCount() {
+            document.getElementById('windowCount').textContent = `(${windows.size}路)`;
+        }
+
+        function showAddModal() {
+            document.getElementById('addModal').classList.add('show');
+            document.getElementById('rtspUrlInput').focus();
+        }
+
+        function hideAddModal() {
+            document.getElementById('addModal').classList.remove('show');
+            document.getElementById('rtspUrlInput').value = '';
+        }
+
+        function confirmAdd() {
+            const rtspUrl = document.getElementById('rtspUrlInput').value.trim();
+            if (!rtspUrl) {
+                alert('请输入 RTSP 地址');
+                return;
+            }
+            addWindow(rtspUrl);
+            hideAddModal();
+        }
+
+        function showBatchModal() {
+            document.getElementById('batchModal').classList.add('show');
+            document.getElementById('batchRtspInput').focus();
+        }
+
+        function hideBatchModal() {
+            document.getElementById('batchModal').classList.remove('show');
+            document.getElementById('batchRtspInput').value = '';
+        }
+
+        async function confirmBatchAdd() {
+            const text = document.getElementById('batchRtspInput').value.trim();
+            if (!text) {
+                alert('请输入 RTSP 地址');
+                return;
+            }
+
+            const urls = text.split('\n').map(u => u.trim()).filter(u => u);
+            if (urls.length === 0) {
+                alert('没有有效的 RTSP 地址');
+                return;
+            }
+
+            hideBatchModal();
+
+            // 逐个添加，每个间隔 100ms
+            for (let i = 0; i < urls.length; i++) {
+                addWindow(urls[i]);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        function createWindowElement(windowId, rtspUrl) {
+            return `
+                <div class="window" id="window-${windowId}" data-window-id="${windowId}">
+                    <div class="window-header">
+                        <div class="window-title" title="${rtspUrl}">📹 ${windowId}</div>
+                        <div class="window-actions">
+                            <button class="btn-icon btn-play" onclick="togglePlay('${windowId}')" title="播放/暂停">▶</button>
+                            <button class="btn-icon btn-delete" onclick="removeWindow('${windowId}')" title="删除">✕</button>
+                        </div>
+                    </div>
+                    <div class="window-body">
+                        <video id="video-${windowId}" autoplay muted playsinline></video>
+                        <div class="loading-overlay hidden" id="loading-${windowId}">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    <div class="window-status">
+                        <div class="status-indicator">
+                            <div class="status-dot" id="statusDot-${windowId}"></div>
+                            <span id="statusText-${windowId}">未播放</span>
+                        </div>
+                        <span style="color: rgba(255,255,255,0.5); font-size: 10px;">${rtspUrl}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function addWindow(rtspUrl) {
+            const serverUrl = getServerUrl();
+            const windowId = 'win_' + (++windowIdCounter);
+
+            try {
+                const response = await fetch(`${serverUrl}/api/rtsp/flv/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: rtspUrl })
+                });
+
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const container = document.getElementById('gridContainer');
+                    const addCard = container.querySelector('.add-window-card');
+                    if (addCard) addCard.remove();
+
+                    container.insertAdjacentHTML('beforeend', createWindowElement(windowId, rtspUrl));
+                    
+                    startPlayback(windowId, data.taskId);
+                    startKeepAlive(windowId, data.taskId);
+                    
+                    windows.set(windowId, {
+                        taskId: data.taskId,
+                        rtspUrl: rtspUrl,
+                        pc: null,
+                        ws: null,
+                        keepAliveTimer: null
+                    });
+
+                    updateLayout();
+                    updateWindowCount();
+                } else {
+                    alert('添加失败：' + data.result);
+                }
+            } catch (error) {
+                alert('请求失败：' + error.message);
+            }
+        }
+
+        function startPlayback(windowId, taskId) {
+            const videoElement = document.getElementById(`video-${windowId}`);
+            const statusDot = document.getElementById(`statusDot-${windowId}`);
+            const statusText = document.getElementById(`statusText-${windowId}`);
+            const loading = document.getElementById(`loading-${windowId}`);
+            const windowEl = document.getElementById(`window-${windowId}`);
+
+            const streamName = 'conv_' + taskId;
+            const serverUrl = getServerUrl().replace('http://', 'ws://').replace('https://', 'wss://');
+            const wsUrl = `${serverUrl}/api/ws?src=${streamName}`;
+            
+            const pc = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun.cloudflare.com:3478' }
+                ],
+                sdpSemantics: 'unified-plan'
+            });
+            
+            // 优化：只接收视频
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
+            let ws = null;
+
+            loading.classList.remove('hidden');
+            statusDot.className = 'status-dot connecting';
+            statusText.textContent = '连接中...';
+
+            pc.ontrack = (event) => {
+                videoElement.srcObject = event.streams[0];
+                videoElement.play().catch(() => {});
+                loading.classList.add('hidden');
+                statusDot.className = 'status-dot active';
+                statusText.textContent = '播放中';
+                windowEl.classList.add('active');
+            };
+            
+            // 优化：降低不活跃窗口的帧率
+            pc.onnegotiationneeded = async () => {
+                // 自动重新协商
+            };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'webrtc/candidate',
+                        value: event.candidate.candidate
+                    }));
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+                    loading.classList.add('hidden');
+                    statusDot.className = 'status-dot error';
+                    statusText.textContent = '连接失败';
+                    windowEl.classList.remove('active');
+                } else if (pc.connectionState === 'connected') {
+                    loading.classList.add('hidden');
+                    statusDot.className = 'status-dot active';
+                    statusText.textContent = '播放中';
+                }
+            };
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = async () => {
+                const offer = await pc.createOffer({
+                    offerToReceiveVideo: true,
+                    offerToReceiveAudio: true
+                });
+                await pc.setLocalDescription(offer);
+                
+                ws.send(JSON.stringify({
+                    type: 'webrtc',
+                    value: {
+                        type: 'offer',
+                        sdp: pc.localDescription.sdp
+                    }
+                }));
+            };
+
+            ws.onmessage = async (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+
+                    if (msg.type === 'webrtc' && msg.value.type === 'answer') {
+                        await pc.setRemoteDescription(new RTCSessionDescription(msg.value));
+                    } else if (msg.type === 'webrtc/candidate') {
+                        await pc.addIceCandidate(new RTCIceCandidate({ candidate: msg.value }));
+                    }
+                } catch (err) {
+                    console.error('处理消息失败:', err);
+                }
+            };
+
+            ws.onerror = () => {
+                loading.classList.add('hidden');
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'WebSocket 错误';
+            };
+
+            const windowData = windows.get(windowId);
+            if (windowData) {
+                windowData.pc = pc;
+                windowData.ws = ws;
+            }
+        }
+
+        function stopPlayback(windowId) {
+            const windowData = windows.get(windowId);
+            if (windowData) {
+                if (windowData.ws) windowData.ws.close();
+                if (windowData.pc) windowData.pc.close();
+            }
+            windows.delete(windowId);
+        }
+
+        function togglePlay(windowId) {
+            const windowData = windows.get(windowId);
+            const video = document.getElementById(`video-${windowId}`);
+            if (video && windowData) {
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            }
+        }
+
+        function startKeepAlive(windowId, taskId) {
+            const interval = parseInt(document.getElementById('keepAliveInterval')?.value) || 25000;
+            const timer = setInterval(async () => {
+                if (windows.has(windowId)) {
+                    try {
+                        await fetch(`${getServerUrl()}/api/rtsp/flv/keepLive`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ taskId })
+                        });
+                    } catch (err) {
+                        console.error('保活失败:', err);
+                    }
+                } else {
+                    clearInterval(timer);
+                }
+            }, interval);
+
+            const windowData = windows.get(windowId);
+            if (windowData) {
+                windowData.keepAliveTimer = timer;
+            }
+        }
+
+        function removeWindow(windowId) {
+            if (!confirm('确定要删除这个窗口吗？')) return;
+
+            const windowData = windows.get(windowId);
+            if (windowData && windowData.taskId) {
+                fetch(`${getServerUrl()}/api/rtsp/flv/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskId: windowData.taskId })
+                }).catch(console.error);
+            }
+
+            stopPlayback(windowId);
+
+            const windowEl = document.getElementById(`window-${windowId}`);
+            if (windowEl) windowEl.remove();
+
+            updateLayout();
+            updateWindowCount();
+        }
+
+        function stopAll() {
+            if (!confirm('确定要停止所有窗口吗？')) return;
+
+            windows.forEach((data, windowId) => {
+                if (data.taskId) {
+                    fetch(`${getServerUrl()}/api/rtsp/flv/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taskId: data.taskId })
+                    }).catch(console.error);
+                }
+                stopPlayback(windowId);
+            });
+
+            document.getElementById('gridContainer').innerHTML = `
+                <div class="add-window-card" onclick="showAddModal()">
+                    <div class="add-icon">➕</div>
+                    <div class="add-text">点击添加窗口</div>
+                </div>
+            `;
+            windowIdCounter = 0;
+            updateWindowCount();
+        }
+
+        function updateLayout() {
+            const container = document.getElementById('gridContainer');
+            if (windows.size === 0 && !container.querySelector('.add-window-card')) {
+                container.innerHTML = `
+                    <div class="add-window-card" onclick="showAddModal()">
+                        <div class="add-icon">➕</div>
+                        <div class="add-text">点击添加窗口</div>
+                    </div>
+                `;
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            windows.forEach((data) => {
+                if (data.ws) data.ws.close();
+                if (data.pc) data.pc.close();
+                if (data.keepAliveTimer) clearInterval(data.keepAliveTimer);
+            });
+            windows.clear();
+        });
+
+        // 日志函数
+        function log(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // 初始化
+        log('WebRTC 多窗口大屏已加载', 'success');
+        log(`默认服务器地址：http://localhost:1984`, 'info');
+        
+        // 检测文件协议
+        if (window.location.protocol === 'file:') {
+            log('当前为本地文件模式，如无法连接请检查 go2rtc 是否启动', 'warning');
+        }
+        
+        updateLayout();
+    </script>
+</body>
+</html>
