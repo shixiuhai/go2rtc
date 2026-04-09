@@ -71,6 +71,7 @@ func Init() {
 	api.HandleFunc("api/health", apiHealth)
 
 	http.HandleFunc("/flv/", apiFLV)
+	http.HandleFunc("/wsflv/", apiWSFLV)
 }
 
 func GenerateTaskID(rtspPath string) string {

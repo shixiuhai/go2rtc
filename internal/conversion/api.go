@@ -8,6 +8,7 @@ import (
 
 	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/flv"
+	"github.com/gorilla/websocket"
 )
 
 type AddTaskRequest struct {
@@ -252,6 +253,62 @@ func apiFLV(w http.ResponseWriter, r *http.Request) {
 	_, _ = cons.WriteTo(w)
 
 	stream.RemoveConsumer(cons)
+}
+
+var wsUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+func apiWSFLV(w http.ResponseWriter, r *http.Request) {
+	taskID := r.URL.Query().Get("id")
+	if taskID == "" {
+		taskID = strings.TrimPrefix(r.URL.Path, "/wsflv/")
+		taskID = strings.TrimSuffix(taskID, ".ws")
+	}
+
+	info := manager.GetTaskInfo(taskID)
+	if info == nil {
+		http.Error(w, "task not found", http.StatusNotFound)
+		return
+	}
+
+	stream := streams.Get(info.StreamName)
+	if stream == nil {
+		http.Error(w, "stream not found", http.StatusNotFound)
+		return
+	}
+
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer conn.Close()
+
+	cons := flv.NewConsumer()
+	cons.WithRequest(r)
+
+	if err := stream.AddConsumer(cons); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer stream.RemoveConsumer(cons)
+
+	wsWriter := &wsWriter{conn: conn}
+	_, _ = cons.WriteTo(wsWriter)
+}
+
+type wsWriter struct {
+	conn *websocket.Conn
+}
+
+func (w *wsWriter) Write(p []byte) (n int, err error) {
+	if err := w.conn.WriteMessage(websocket.BinaryMessage, p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func setCorsHeaders(w http.ResponseWriter) {

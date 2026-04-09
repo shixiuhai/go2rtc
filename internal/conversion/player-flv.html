@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RTSP 转 FLV 多路播放器</title>
+    <title>RTSP 转 WS-FLV 多路播放器</title>
     <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
     <style>
         * {
@@ -387,7 +387,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📺 RTSP 转 FLV 多路播放器</h1>
+        <h1>📺 RTSP 转 WS-FLV 多路播放器</h1>
 
         <!-- 统计栏 -->
         <div class="stats-bar">
@@ -602,7 +602,6 @@
         // 开始播放指定任务
         function startPlayback(taskId, flvUrl) {
             const serverUrl = getServerUrl();
-            const fullUrl = `${serverUrl}${flvUrl}`;
             const videoElement = document.getElementById(`video-${taskId}`);
             const statusDot = document.getElementById(`statusDot-${taskId}`);
             const statusText = document.getElementById(`statusText-${taskId}`);
@@ -619,9 +618,10 @@
                 stopPlayback(taskId);
             }
 
+            const wsUrl = serverUrl.replace('http', 'ws') + '/wsflv/?id=' + taskId;
             const flvPlayer = flvjs.createPlayer({
                 type: 'flv',
-                url: fullUrl,
+                url: wsUrl,
                 hasAudio: false,
                 isLive: true,
                 enableStashBuffer: false
@@ -894,8 +894,9 @@
         }
 
         // 初始化
-        log('多路播放器已初始化', 'success');
+        log('WS-FLV 多路播放器已初始化', 'success');
         log(`默认服务地址：${getServerUrl()}`, 'info');
+        log('使用 WebSocket FLV 协议，突破浏览器 6 路连接限制', 'success');
         checkServerStatus();
         setInterval(checkServerStatus, 30000); // 每 30 秒检查服务状态
         loadTaskList();
