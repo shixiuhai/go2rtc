@@ -58,7 +58,7 @@ func apiAddTask(w http.ResponseWriter, r *http.Request) {
 
 	taskID := GenerateTaskID(rtspPath)
 	flvURL := "/flv/" + taskID + ".flv"
-	wsFlvURL := "/wsflv/?id=" + taskID
+	wsFlvURL := "/wsflv/" + taskID + ".flv"
 
 	existing := manager.GetTaskInfo(taskID)
 	if existing != nil {
@@ -265,11 +265,8 @@ var wsUpgrader = websocket.Upgrader{
 }
 
 func apiWSFLV(w http.ResponseWriter, r *http.Request) {
-	taskID := r.URL.Query().Get("id")
-	if taskID == "" {
-		taskID = strings.TrimPrefix(r.URL.Path, "/wsflv/")
-		taskID = strings.TrimSuffix(taskID, ".ws")
-	}
+	taskID := strings.TrimPrefix(r.URL.Path, "/wsflv/")
+	taskID = strings.TrimSuffix(taskID, ".flv")
 
 	info := manager.GetTaskInfo(taskID)
 	if info == nil {

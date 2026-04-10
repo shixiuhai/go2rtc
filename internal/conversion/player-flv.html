@@ -618,7 +618,7 @@
                 stopPlayback(taskId);
             }
 
-            const wsUrl = serverUrl.replace('http', 'ws') + '/wsflv/?id=' + taskId;
+            const wsUrl = serverUrl.replace('http', 'ws') + '/wsflv/' + taskId + '.flv';
             const flvPlayer = flvjs.createPlayer({
                 type: 'flv',
                 url: wsUrl,
